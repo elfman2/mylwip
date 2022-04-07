@@ -13,6 +13,7 @@
 #define  SYS_ARCH_UNPROTECT(x)
 #define SYS_ARCH_DECL_PROTECT(x)
 #undef LWIP_RAND 
+
 /*#define LWIP_NETIF_STATUS_CALLBACK  1
 #define LWIP_NETIF_LINK_CALLBACK    1
 */
