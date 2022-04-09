@@ -1,8 +1,6 @@
 #ifndef LWIP_LWIPOPTS_H
 #define LWIP_LWIPOPTS_H
-#define MEMP_USE_CUSTOM_POOLS 1
-#define LWIP_SINGLE_NETIF 1
-#define LWIP_TCP 0
+#define MEMP_USE_CUSTOM_POOLS 0
 #define LWIP_TCPIP_TIMEOUT 0
 #define NO_SYS       1
 #define LWIP_SOCKET  0

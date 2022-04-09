@@ -6,13 +6,6 @@
 #include "lwip/etharp.h"
 #include <string.h>
 #define printf
-static void my_udp_recv_fn (void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
-{
-   printf("UDP packet received: \n");
-   printf("from remote ip = %s\n", ip4addr_ntoa(addr));
-   printf("from remote port = %d\n", port);
-   printf("with data = %s", (char *)(p->payload));
-}
 typedef enum lwip_error_t{
     LWIP_ERR_ADD,
     LWIP_ERR_NEW,
@@ -21,8 +14,12 @@ typedef enum lwip_error_t{
 }lwip_error_t;
 static  struct netif my_netif;
 static char MAC[6]={0x00,0x01,0x02,0x03,0x04,0x05};
+
+extern err_t  mynetif_linkoutput_fn (struct netif *netif, struct pbuf *p);
+
 static err_t init_if(struct netif *netif){
   netif->output     = etharp_output;
+  netif->linkoutput = mynetif_linkoutput_fn;
   netif->flags      = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET | NETIF_FLAG_IGMP | NETIF_FLAG_MLD6;
   SMEMCPY(netif->hwaddr, MAC, ETH_HWADDR_LEN);
   netif->hwaddr_len = ETH_HWADDR_LEN;
@@ -44,10 +41,6 @@ static int  nif(void){
    netif_set_default(&my_netif);
    netif_set_link_up(&my_netif);
    netif_set_up(netif_default);
-   struct udp_pcb* my_udp_pcb = udp_new();
-   if (NULL == my_udp_pcb) return LWIP_ERR_NEW;
-   if (ERR_OK != udp_bind(my_udp_pcb, IP_ANY_TYPE, 60001)) return LWIP_ERR_BIND;
-   udp_recv(my_udp_pcb, my_udp_recv_fn, NULL);
 }
 int initmylwip(void)
 {
@@ -57,25 +50,17 @@ int initmylwip(void)
    nif();
 
 }
-typedef struct my_custom_pbuf
-{
-   struct pbuf_custom p;
-   void* dma_descriptor;
-} my_custom_pbuf_t;
 
-LWIP_MEMPOOL_DECLARE(RX_POOL, 10, sizeof(my_custom_pbuf_t), "Zero-copy RX PBUF pool");
 
-void lwip_run(uint8_t *p_data_eth,int size){   
-  my_custom_pbuf_t* my_pbuf  = (my_custom_pbuf_t*)LWIP_MEMPOOL_ALLOC(RX_POOL);
+void lwip_run(uint8_t *buf,int len){   
+  struct pbuf *p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+  if (p != NULL) {
+    pbuf_take(p, buf, len);
+    /* acknowledge that packet has been read(); */
+    if(my_netif.input(p, &my_netif) != ERR_OK) {
+        pbuf_free(p);
+    }    
+  }
 
-  struct pbuf* p = pbuf_alloced_custom(PBUF_RAW,
-     size-ETH_HWADDR_LEN,
-     PBUF_REF,
-     &my_pbuf->p,
-     p_data_eth,
-     size);
-  if(my_netif.input(p, &my_netif) != ERR_OK) {
-    pbuf_free(p);
-  }    
 }
 
